@@ -729,7 +729,7 @@ function buildEpisodes(points, gaps){
     }
     run = [];
   };
-  points.forEach(p => { p.lost > 0 ? run.push(p) : flush(); });
+  points.forEach(p => { (p.lost > 0 && p.lost < 5) ? run.push(p) : flush(); });
   flush();
   eps.push(...segEpisodes(points, "router", "AP Wi-Fi injoignable", "t-ap", "ap"));
   eps.push(...segEpisodes(points, "cpe", "Box 5G injoignable", "t-cpe", "cpe"));
@@ -742,8 +742,11 @@ function currentState(points){
   if (age >= 2) return { state: "down", since: Date.parse(last.ts), detail: `${age} min sans mesure` };
   const tail = points.slice(-10);
   const avg  = tail.reduce((a,p) => a + p.lost, 0) / tail.length;
-  if (avg >= 1) return { state: "degraded", since: Date.parse(tail[0].ts), detail: `perte moyenne ${(avg/5*100).toFixed(0)} % sur 10 min · SINR ${last.radio.sinr} dB` };
-  return { state: "ok", since: null, detail: `RTT ${last.rtt.p50} ms · SINR ${last.radio.sinr} dB · bande ${last.radio.band} · cellule ${last.radio.cell}` };
+  const fresh = points.slice(-3).some(p => p.lost > 0);
+  const sinr = last.radio && last.radio.sinr != null ? ` · SINR ${last.radio.sinr} dB` : "";
+  const cell = last.radio && last.radio.band ? ` · bande ${last.radio.band} · cellule ${last.radio.cell}` : "";
+  if (avg >= 1 && fresh) return { state: "degraded", since: Date.parse(tail[0].ts), detail: `perte moyenne ${(avg/5*100).toFixed(0)} % sur 10 min${sinr}` };
+  return { state: "ok", since: null, detail: `RTT ${last.rtt.p50} ms${sinr}${cell}` };
 }
 
 /* ============================================================
