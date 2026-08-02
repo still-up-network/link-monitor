@@ -922,7 +922,7 @@ function renderKpis(points, eps, fromTs, toTs){
   const inWin = points.filter(p => { const t = Date.parse(p.ts); return t >= fromTs && t <= toTs; });
   const span  = Math.round((toTs - fromTs) / MINUTE) + 1;
   const win   = e => e.start >= fromTs && e.start <= toTs;
-  const outMin = eps.filter(e => win(e) && e.kind !== "degraded")
+  const outMin = eps.filter(e => win(e) && !["degraded", "ap", "cpe"].includes(e.kind))
                     .reduce((a,e) => a + e.minutes, 0);
   const wanEps = eps.filter(e => win(e) && e.kind === "wan").length;
   const loss = inWin.length ? inWin.reduce((a,p) => a + p.lost, 0) / (inWin.length * 5) * 100 : 0;
