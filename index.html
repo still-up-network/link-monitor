@@ -24,6 +24,8 @@
   --warnBg:#F8EFDF;
   --code:#26303A;
   --kdim:#9BA6AE;
+  --ap:#6B4FA3;
+  --cpe:#0E7C86;
 }
 /* Palette sombre : appliquée si le système est en sombre, sauf surcharge manuelle en clair */
 @media (prefers-color-scheme:dark){
@@ -43,6 +45,8 @@
     --warnBg:#2A2318;
     --code:#C6D2CE;
     --kdim:#5A6A6C;
+    --ap:#A78BDB;
+    --cpe:#4FB8C2;
   }
 }
 /* Surcharge manuelle explicite */
@@ -62,6 +66,8 @@
   --warnBg:#2A2318;
   --code:#C6D2CE;
   --kdim:#5A6A6C;
+    --ap:#A78BDB;
+    --cpe:#4FB8C2;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -188,6 +194,28 @@ tr:last-child td{border-bottom:0}
 .t-power{color:var(--accent)}
 .t-nas{color:var(--graphite)}
 .t-degraded{color:var(--warn)}
+.t-ap{color:var(--ap)}
+.t-cpe{color:var(--cpe)}
+.ep-list{display:grid;gap:10px}
+.ep{
+  cursor:pointer;
+  border:1px solid var(--rule);border-left:6px solid var(--graphite);
+  background:var(--card);padding:12px 15px;
+  display:grid;grid-template-columns:1fr auto;gap:3px 16px;align-items:center;
+}
+.ep.wan{border-left-color:var(--down)}
+.ep.power{border-left-color:var(--accent)}
+.ep.nas{border-left-color:var(--unknown)}
+.ep.degraded{border-left-color:var(--warn)}
+.ep.ap{border-left-color:var(--ap)}
+.ep.cpe{border-left-color:var(--cpe)}
+.ep-when{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--graphite);margin-top:4px}
+.ep-dur{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:26px;letter-spacing:-0.01em;text-align:right}
+.ep-dur small{display:block;font-family:"IBM Plex Mono",monospace;font-size:9px;font-weight:500;letter-spacing:0.1em;color:var(--graphite);text-transform:uppercase}
+.ep:hover{border-color:var(--ink)}
+.ep.selected{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.ep.selected .ep-dur{color:var(--accent)}
+.ep:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .empty{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--graphite);padding:16px 0}
 
 details{border:1px solid var(--rule);background:var(--card);margin-top:12px}
@@ -653,6 +681,20 @@ function labelFor(cause){
   return { kind: "wan", label: "Lien perdu", cls: "t-wan" };
 }
 
+function segEpisodes(points, key, label, cls, kind){
+  const eps = []; let run = [];
+  const flush = () => {
+    if (run.length >= 2){
+      eps.push({ start: Date.parse(run[0].ts), minutes: run.length,
+                 kind, label, cls, detail: `${run.length} min sans réponse, internet mesuré par ailleurs` });
+    }
+    run = [];
+  };
+  points.forEach(p => { (p.seg && p.seg[key] === false) ? run.push(p) : flush(); });
+  flush();
+  return eps;
+}
+
 function buildEpisodes(points, gaps){
   // Les coupures enregistrées par le watchdog font foi : elles survivent à la
   // purge des minutes brutes, donc l'historique long reste exact.
@@ -688,6 +730,8 @@ function buildEpisodes(points, gaps){
   };
   points.forEach(p => { p.lost > 0 ? run.push(p) : flush(); });
   flush();
+  eps.push(...segEpisodes(points, "router", "AP Wi-Fi injoignable", "t-ap", "ap"));
+  eps.push(...segEpisodes(points, "cpe", "Box 5G injoignable", "t-cpe", "cpe"));
   return eps.sort((a,b) => b.start - a.start);
 }
 
@@ -712,6 +756,7 @@ let VIEW = { from: NOW - (360 - 1) * MINUTE, to: NOW };   // fenêtre affichée
 const ZOOM = [];                                          // pile des fenêtres précédentes
 const MIN_SPAN = 5;                                       // minutes : plancher du zoom
 let brush = null;                                         // sélection en cours
+let SELECTED_EP = null, EPS_BASE = [];                    // épisode ciblé + liste hors zoom
 
 const canvas  = document.getElementById("ribbon");
 const ctx     = canvas.getContext("2d");
@@ -783,8 +828,10 @@ function draw(){
   COLS.forEach((c, i) => {
     const x = i * cw;
     if (c.gap){
-      ctx.save();
+      // bande basse hachurée : « inconnu » se distingue de « mesuré perdu »
+      // sans dominer la lecture des pertes partielles
       const gh = Math.max(6, bandH * 0.38);
+      ctx.save();
       ctx.fillStyle = C("--unknown"); ctx.globalAlpha = .25;
       ctx.fillRect(x, bandH - gh, barW, gh);
       ctx.globalAlpha = .7; ctx.strokeStyle = C("--unknown"); ctx.lineWidth = 1;
@@ -795,6 +842,8 @@ function draw(){
       ctx.save(); ctx.beginPath(); ctx.rect(x, bandH - gh, barW, gh); ctx.clip(); ctx.stroke(); ctx.restore();
       ctx.restore();
     } else if (c.lost === 0){
+      // tout reçu : la hauteur encode la latence (p50), plafonnée pour ne pas
+      // écraser le graphe — au-delà du plafond, couleur dédiée « reçu mais atypique »
       const capped = c.p50 !== null && c.p50 > RTT_CAP;
       const r = c.p50 === null ? 0 : Math.min(c.p50, RTT_CAP) / RTT_CAP;
       const bh = Math.max(2, r * bandH * 0.65);
@@ -895,16 +944,15 @@ function renderEpisodes(eps, fromTs, toTs){
     el.innerHTML = `<p class="empty">Aucun épisode sur cette fenêtre. Dézoome ou élargis la période pour voir l'historique.</p>`;
     return;
   }
-  el.innerHTML = `<table><thead><tr>
-      <th style="width:22%">Début</th><th style="width:14%">Durée</th>
-      <th style="width:22%">Qualification</th><th>Relevé</th>
-    </tr></thead><tbody>${rows.slice(0, 14).map(e => `
-      <tr>
-        <td data-label="Début">${new Date(e.start).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })}</td>
-        <td data-label="Durée">${fmtDur(e.minutes)}</td>
-        <td data-label="Type"><span class="tag ${e.cls}">${e.label}</span></td>
-        <td data-label="Relevé">${e.detail}</td>
-      </tr>`).join("")}</tbody></table>`;
+  el.innerHTML = `<div class="ep-list">${rows.slice(0, 14).map(e => `
+    <article class="ep ${e.kind}${e.start === SELECTED_EP ? " selected" : ""}" role="button" tabindex="0"
+             data-start="${e.start}" data-minutes="${e.minutes}">
+      <div>
+        <span class="tag ${e.cls}">${e.label}</span>
+        <div class="ep-when">${new Date(e.start).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })} · ${e.detail}</div>
+      </div>
+      <div class="ep-dur">${fmtDur(e.minutes)}<small>durée</small></div>
+    </article>`).join("")}</div>`;
 }
 
 function renderVerdict(ds){
@@ -947,6 +995,7 @@ function fmtTs(t){
 function render(){
   COLS = bucketize(DATA.points, VIEW.from, VIEW.to);
   const eps = buildEpisodes(DATA.points, DATA.gaps);
+  if (!ZOOM.length){ EPS_BASE = eps; SELECTED_EP = null; }
   const per = COLS[0].minutes;
   document.getElementById("ribbonRange").textContent =
     `${fmtTs(VIEW.from)} → ${VIEW.to >= NOW - MINUTE ? "maintenant" : fmtTs(VIEW.to)} · 1 colonne = ${per === 1 ? "1 minute" : per + " min"}`;
@@ -954,12 +1003,14 @@ function render(){
     per === 1 ? "résolution maximale · une colonne = une mesure" : "glisse sur le ruban pour zoomer";
   draw();
   renderKpis(DATA.points, eps, VIEW.from, VIEW.to);
-  renderEpisodes(eps, VIEW.from, VIEW.to);
+  const epsShown = ZOOM.length && EPS_BASE.length ? EPS_BASE : eps;
+  renderEpisodes(epsShown, ZOOM.length ? -Infinity : VIEW.from, ZOOM.length ? Infinity : VIEW.to);
   document.querySelectorAll(".ep[data-start]").forEach(card => {
     const go = () => {
       const start = Number(card.dataset.start);
+      SELECTED_EP = start;
       const dur = Number(card.dataset.minutes) * MINUTE;
-      const pad = Math.max(10 * MINUTE, dur * 0.5);
+      const pad = Math.max(10 * MINUTE, dur * 0.5);      // contexte avant/après
       setView(start - pad, start + dur + pad);
       document.querySelector(".recorder").scrollIntoView({ behavior: "smooth", block: "center" });
     };
@@ -1006,7 +1057,7 @@ function showReadout(clientX, clientY){
     ? `<b class="hd">${t}</b><span class="k">état</span>aucune donnée<br><span class="k">durée bloc</span>${c.minutes} min`
     : `<b class="hd">${t}</b>
        <span class="k">perte</span>${c.lost}/5<br>
-       ${c.point.lost_worst > c.lost ? `<span class="k">pire cible</span>${c.point.lost_worst}/5<br>` : ""}
+       ${c.point.lost_worst > 0 && c.point.per_target ? Object.entries(c.point.per_target).map(([h, l]) => `<span class="k">${h}</span>${l}/5 perdu<br>`).join("") : ""}
        ${c.p50 !== null ? `<span class="k">rtt p50</span>${c.p50} ms<br>` : ""}
        ${c.max !== null ? `<span class="k">rtt max</span>${c.max} ms<br>` : ""}
        ${c.sinr !== null && !Number.isNaN(+c.sinr) ? `<span class="k">sinr</span>${c.sinr} dB<br>` : ""}
@@ -1037,7 +1088,7 @@ function endDrag(e){
   if (dragFrom === null) return;
   const x0 = dragFrom, x1 = e.clientX;
   dragFrom = null; brush = null;
-  if (dragged && Math.abs(x1 - x0) > 8) setView(tsAtX(Math.min(x0, x1)), tsAtX(Math.max(x0, x1)));
+  if (dragged && Math.abs(x1 - x0) > 8){ SELECTED_EP = null; setView(tsAtX(Math.min(x0, x1)), tsAtX(Math.max(x0, x1))); }
   else draw();
 }
 canvas.addEventListener("pointerup", endDrag);
@@ -1172,8 +1223,8 @@ $("loginGo").addEventListener("click", () => attempt(
   () => Device.login(), "Vérification en cours…"));
 
 async function revokeThisDevice(){
-  lock(true); showAccess();
   const msg = $("enrolMsg");
+  lock(true); showAccess();
   msg.className = ""; msg.textContent = "Révocation…";
   try {
     if (!Device.session) await Device.login();
