@@ -342,10 +342,11 @@ body[data-locked="1"] #enrol{display:block}
     </div>
     <canvas id="ribbon" aria-label="Enregistrement minute par minute de la perte de paquets et de la joignabilité des segments"></canvas>
     <div class="lanes-key">
-      <span><i class="swatch" style="background:var(--ok)"></i>0/5 perdu</span>
-      <span><i class="swatch" style="background:var(--warn)"></i>1 à 4/5</span>
-      <span><i class="swatch" style="background:var(--down)"></i>5/5</span>
-      <span><i class="swatch" style="background:var(--unknown)"></i>aucune donnée reçue</span>
+      <span><i class="swatch" style="background:var(--ok)"></i>reçu · hauteur = latence</span>
+      <span><i class="swatch" style="background:var(--accent)"></i>reçu · &gt; 120 ms, écrêté</span>
+      <span><i class="swatch" style="background:var(--warn)"></i>1 à 4/5 perdu</span>
+      <span><i class="swatch" style="background:var(--down)"></i>5/5 perdu</span>
+      <span><i class="swatch" style="background:var(--unknown)"></i>aucune donnée</span>
     </div>
     <div class="readout" id="readout" role="status"></div>
   </section>
@@ -400,6 +401,7 @@ const API_BASE  = "https://5yvfvaj6wmsnxvghzy4tr76qju0xyljh.lambda-url.eu-west-3
 const READ_TOKEN = "";    // à renseigner seulement si la pile a été déployée avec ReadToken
 /* ------------------------------------------------------------------------- */
 
+const RTT_CAP = 120;   // ms : au-delà, la barre de latence est écrêtée et change de couleur
 const MINUTE = 60000;
 const TOTAL_MINUTES = 43200;                 // 30 jours d'historique simulé
 let NOW = Date.now() - (Date.now() % MINUTE);
@@ -790,13 +792,18 @@ function draw(){
       }
       ctx.save(); ctx.beginPath(); ctx.rect(x, bandH - gh, barW, gh); ctx.clip(); ctx.stroke(); ctx.restore();
       ctx.restore();
-    } else {
-      const frac = c.lost / 5;
-      const bh = Math.max(2, frac * bandH);
-      ctx.fillStyle = colorFor(c);
-      ctx.globalAlpha = c.lost === 0 ? .5 : 1;
+    } else if (c.lost === 0){
+      const capped = c.p50 !== null && c.p50 > RTT_CAP;
+      const r = c.p50 === null ? 0 : Math.min(c.p50, RTT_CAP) / RTT_CAP;
+      const bh = Math.max(2, r * bandH * 0.65);
+      ctx.fillStyle = capped ? C("--accent") : C("--ok");
+      ctx.globalAlpha = capped ? 1 : .55;
       ctx.fillRect(x, bandH - bh, barW, bh);
       ctx.globalAlpha = 1;
+    } else {
+      const bh = Math.max(2, (c.lost / 5) * bandH);
+      ctx.fillStyle = colorFor(c);
+      ctx.fillRect(x, bandH - bh, barW, bh);
     }
     // pistes de segments
     const seg = c.point ? c.point.seg : null;
