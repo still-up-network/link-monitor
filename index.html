@@ -780,12 +780,15 @@ function draw(){
     const x = i * cw;
     if (c.gap){
       ctx.save();
-      ctx.fillStyle = C("--unknown"); ctx.globalAlpha = .28;
-      ctx.fillRect(x, 0, barW, bandH);
-      ctx.globalAlpha = .85; ctx.strokeStyle = C("--unknown"); ctx.lineWidth = 1;
+      const gh = Math.max(6, bandH * 0.38);
+      ctx.fillStyle = C("--unknown"); ctx.globalAlpha = .25;
+      ctx.fillRect(x, bandH - gh, barW, gh);
+      ctx.globalAlpha = .7; ctx.strokeStyle = C("--unknown"); ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let y = -bandH; y < bandH; y += 5){ ctx.moveTo(x, y + bandH); ctx.lineTo(x + barW, y); }
-      ctx.save(); ctx.beginPath(); ctx.rect(x, 0, barW, bandH); ctx.clip(); ctx.stroke(); ctx.restore();
+      for (let yy = bandH - gh; yy < bandH + barW; yy += 5){
+        ctx.moveTo(x, yy); ctx.lineTo(x + barW, yy - barW);
+      }
+      ctx.save(); ctx.beginPath(); ctx.rect(x, bandH - gh, barW, gh); ctx.clip(); ctx.stroke(); ctx.restore();
       ctx.restore();
     } else {
       const frac = c.lost / 5;
