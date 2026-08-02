@@ -309,6 +309,7 @@ body[data-locked="1"] #enrol{display:block}
       <input id="enrolName" type="text" autocomplete="off"
              placeholder="nom de l'appareil" aria-label="Nom de l'appareil">
       <button type="button" id="enrolGo">Enrôler cet appareil</button>
+      <button type="button" id="loginAnyGo" class="quiet">J'ai déjà une clé pour ce site</button>
     </div>
     <div class="row" id="rowLogin" hidden>
       <button type="button" id="loginGo">Déverrouiller</button>
@@ -559,7 +560,7 @@ const Device = {
 
   /** Connexion : défi-réponse signé par l'appareil, déverrouillé par biométrie. */
   async login(){
-    const o = await this._post("auth/begin", { device: this.id });
+    const o = await this._post("auth/begin", { device: this.id || "" });
     const cred = await navigator.credentials.get({ publicKey: {
       challenge: b64u.dec(o.challenge),
       rpId: o.rpId,
@@ -568,7 +569,7 @@ const Device = {
       timeout: 60000,
     }});
     this._persist(await this._post("auth/finish", {
-      device: this.id,
+      device: this.id || "",
       credentialId: b64u.enc(cred.rawId),
       challenge: o.challenge,
       authenticatorData: b64u.enc(cred.response.authenticatorData),
@@ -1147,6 +1148,9 @@ $("enrolGo").addEventListener("click", () => attempt(
   "Suis l'invite de ton appareil…"));
 
 $("loginGo").addEventListener("click", () => attempt(
+  () => Device.login(), "Vérification en cours…"));
+
+$("loginAnyGo").addEventListener("click", () => attempt(
   () => Device.login(), "Vérification en cours…"));
 
 $("forgetGo").addEventListener("click", () => {
