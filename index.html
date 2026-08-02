@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enregistreur de lien — 5G domicile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#E9EBE4;
+  --card:#F5F6F1;
+  --ink:#14181B;
+  --graphite:#5C646B;
+  --rule:#C9CDC2;
+  --ok:#2F6F52;
+  --warn:#B4741A;
+  --down:#9E2B25;
+  --unknown:#9AA0A6;
+  --accent:#1D4E8F;
+  --downBg:#F7E8E6;
+  --warnBg:#F8EFDF;
+  --code:#26303A;
+  --kdim:#9BA6AE;
+}
+/* Palette sombre : appliquée si le système est en sombre, sauf surcharge manuelle en clair */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#141A1B;
+    --card:#1C2325;
+    --ink:#E7EAE3;
+    --graphite:#98A29E;
+    --rule:#2E3739;
+    --ok:#4E9E77;
+    --warn:#D79A3C;
+    --down:#D9615A;
+    --unknown:#6E7A7C;
+    --accent:#6BA3E0;
+    --downBg:#2B1A19;
+    --warnBg:#2A2318;
+    --code:#C6D2CE;
+    --kdim:#5A6A6C;
+  }
+}
+/* Surcharge manuelle explicite */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#141A1B;
+  --card:#1C2325;
+  --ink:#E7EAE3;
+  --graphite:#98A29E;
+  --rule:#2E3739;
+  --ok:#4E9E77;
+  --warn:#D79A3C;
+  --down:#D9615A;
+  --unknown:#6E7A7C;
+  --accent:#6BA3E0;
+  --downBg:#2B1A19;
+  --warnBg:#2A2318;
+  --code:#C6D2CE;
+  --kdim:#5A6A6C;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 72px}
+
+/* ---------- en-tête ---------- */
+.masthead{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  gap:20px;flex-wrap:wrap;
+  border-bottom:2px solid var(--ink);padding-bottom:12px;
+}
+.masthead h1{
+  font-family:"IBM Plex Sans Condensed",sans-serif;
+  font-weight:700;font-size:clamp(26px,4.4vw,40px);
+  letter-spacing:-0.02em;margin:0;text-transform:uppercase;
+}
+.masthead .sub{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;
+  color:var(--graphite);letter-spacing:0.09em;text-transform:uppercase;
+}
+.clock{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--graphite);text-align:right}
+.clock b{display:block;font-size:20px;color:var(--ink);font-weight:600;letter-spacing:-0.01em}
+
+/* ---------- verdict ---------- */
+.verdict{
+  margin-top:18px;border:2px solid var(--ink);background:var(--card);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;
+  padding:18px 20px;align-items:center;
+}
+.verdict.is-down{background:var(--downBg);border-color:var(--down)}
+.verdict.is-degraded{background:var(--warnBg);border-color:var(--warn)}
+.verdict-state{
+  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;
+  font-size:clamp(24px,5vw,42px);line-height:1;letter-spacing:-0.02em;
+  text-transform:uppercase;margin:0;
+}
+.verdict.is-down .verdict-state{color:var(--down)}
+.verdict.is-degraded .verdict-state{color:var(--warn)}
+.verdict-detail{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--graphite);margin-top:6px}
+.verdict-timer{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:clamp(20px,4vw,32px);text-align:right;white-space:nowrap;
+}
+.verdict-timer span{display:block;font-size:10px;letter-spacing:0.1em;color:var(--graphite);text-transform:uppercase;font-weight:500}
+
+/* ---------- barre de contrôle ---------- */
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:22px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--ink)}
+.seg button{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:0.06em;
+  text-transform:uppercase;background:transparent;border:0;color:var(--ink);
+  padding:7px 13px;cursor:pointer;border-right:1px solid var(--rule);
+}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:focus-visible,.ghost:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ghost{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:0.06em;
+  text-transform:uppercase;background:transparent;border:1px dashed var(--graphite);
+  color:var(--graphite);padding:7px 13px;cursor:pointer;
+}
+.ghost[aria-pressed="true"]{border-style:solid;border-color:var(--down);color:var(--down)}
+
+/* ---------- ruban ---------- */
+.recorder{border:1px solid var(--rule);background:var(--card);padding:14px 14px 8px;position:relative}
+.recorder-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--graphite);margin-bottom:10px;
+}
+#ribbon{display:block;width:100%;height:236px;cursor:crosshair;touch-action:none}
+.lanes-key{
+  display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--graphite);
+  letter-spacing:0.06em;text-transform:uppercase;
+}
+.swatch{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25)}
+
+/* lecture instrument */
+.readout{
+  position:absolute;pointer-events:none;z-index:5;
+  background:var(--ink);color:var(--paper);padding:9px 11px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.55;
+  min-width:198px;opacity:0;transition:opacity .12s linear;
+}
+.readout.on{opacity:1}
+.readout .k{color:var(--kdim);display:inline-block;width:74px}
+.readout .hd{font-weight:600;letter-spacing:.04em;margin-bottom:4px;display:block}
+
+/* ---------- indicateurs ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:22px}
+.kpi{background:var(--card);padding:14px 15px}
+.kpi dt{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--graphite);margin:0}
+.kpi dd{margin:5px 0 0;font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:27px;letter-spacing:-0.01em}
+.kpi dd small{font-size:12px;color:var(--graphite);font-weight:500;margin-left:3px}
+
+/* ---------- sections ---------- */
+h2{
+  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;
+  font-size:16px;text-transform:uppercase;letter-spacing:0.06em;
+  margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--ink);
+}
+table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:12px}
+th{
+  text-align:left;font-weight:500;font-size:10px;letter-spacing:0.09em;
+  text-transform:uppercase;color:var(--graphite);
+  border-bottom:1px solid var(--rule);padding:7px 9px 7px 0;
+}
+td{padding:8px 9px 8px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.tag{
+  display:inline-block;padding:1px 7px;font-size:10px;letter-spacing:0.05em;
+  text-transform:uppercase;border:1px solid currentColor;white-space:nowrap;
+}
+.t-wan{color:var(--down)}
+.t-power{color:var(--accent)}
+.t-nas{color:var(--graphite)}
+.t-degraded{color:var(--warn)}
+.empty{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--graphite);padding:16px 0}
+
+details{border:1px solid var(--rule);background:var(--card);margin-top:12px}
+summary{
+  cursor:pointer;padding:11px 14px;font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:0.07em;text-transform:uppercase;
+}
+summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+pre{
+  margin:0;padding:0 14px 14px;overflow-x:auto;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.65;color:var(--code);
+}
+.note{font-size:12.5px;color:var(--graphite);max-width:64ch;margin:8px 0 0}
+footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--graphite);letter-spacing:0.05em}
+
+/* --- tablette --- */
+@media (max-width:900px){
+  .wrap{padding:22px 16px 56px}
+  #ribbon{height:210px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(132px,1fr))}
+  .kpi dd{font-size:23px}
+}
+/* --- mobile --- */
+@media (max-width:620px){
+  .wrap{padding:18px 13px 48px}
+  .masthead{align-items:flex-start}
+  .clock{text-align:left}
+  .verdict{grid-template-columns:1fr;padding:15px 16px;gap:10px}
+  .verdict-timer{text-align:left}
+  #ribbon{height:184px}
+  .recorder{padding:11px 10px 6px}
+  .controls{gap:6px}
+  .seg button,.ghost{padding:8px 10px;font-size:10px}
+  /* le tableau des épisodes devient une pile de fiches */
+  table,thead,tbody,tr,td{display:block;width:100%}
+  thead{display:none}
+  tr{border-bottom:1px solid var(--rule);padding:10px 0}
+  tr:last-child{border-bottom:0}
+  td{border:0;padding:2px 0;display:flex;gap:10px;align-items:baseline}
+  td::before{
+    content:attr(data-label);color:var(--graphite);flex:0 0 76px;
+    font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  }
+}
+@media (max-width:400px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi dd{font-size:20px}
+}
+/* Au doigt, la lecture s'ancre en bas du ruban plutôt que sous le curseur */
+@media (pointer:coarse){
+  #ribbon{cursor:default}
+  .readout{left:8px!important;right:8px!important;top:auto!important;bottom:8px;min-width:0}
+}
+/* Tant que l'appareil n'est pas autorisé, seul le panneau d'accès s'affiche */
+body[data-locked="1"] .controls,
+body[data-locked="1"] .recorder,
+body[data-locked="1"] .kpis,
+body[data-locked="1"] .verdict,
+body[data-locked="1"] #episodes,
+body[data-locked="1"] h2,
+body[data-locked="1"] details,
+body[data-locked="1"] .note{display:none}
+#enrol{display:none;border:2px solid var(--ink);background:var(--card);padding:22px 20px;margin-top:18px}
+body[data-locked="1"] #enrol{display:block}
+#enrol h2{margin-top:0;border:0;padding:0;font-size:20px;display:block}
+#enrol p{max-width:56ch;color:var(--graphite);font-size:13px}
+#enrol .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+#enrol input{
+  font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:0.12em;
+  padding:10px 12px;border:1px solid var(--ink);background:var(--paper);
+  color:var(--ink);min-width:190px;flex:1 1 190px;
+}
+#enrol input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#enrol button{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:0.08em;
+  text-transform:uppercase;padding:10px 18px;border:1px solid var(--ink);
+  background:var(--ink);color:var(--paper);cursor:pointer;
+}
+#enrol button.quiet{background:transparent;color:var(--graphite);border-color:var(--rule)}
+#enrolMsg{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:12px;min-height:1.4em}
+#enrolMsg.err{color:var(--down)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <div class="sub">Enregistreur de lien · 5 sondes par minute</div>
+      <h1>Ligne 5G domicile</h1>
+    </div>
+    <div class="clock">
+      dernière mesure reçue
+      <b id="lastSeen">—</b>
+    </div>
+  </header>
+
+  <section class="verdict" id="verdict" aria-live="polite">
+    <div>
+      <p class="verdict-state" id="verdictState">—</p>
+      <div class="verdict-detail" id="verdictDetail"></div>
+    </div>
+    <div class="verdict-timer" id="verdictTimer"><span>en cours depuis</span>—</div>
+  </section>
+
+  <section id="enrol" aria-live="polite">
+    <h2 id="enrolTitle">Cet appareil n'est pas encore autorisé</h2>
+    <p id="enrolText">
+      Les mesures ne sont visibles que depuis les appareils que tu as enrôlés.
+      Génère un code à usage unique depuis ton poste, puis saisis-le ici. Une clé
+      sera créée dans cet appareil et protégée par sa biométrie ; elle n'en sortira
+      jamais, et le serveur n'en connaîtra que la partie publique.
+    </p>
+    <div class="row" id="rowEnrol">
+      <input id="enrolCode" type="text" inputmode="latin" autocomplete="off"
+             spellcheck="false" placeholder="code d'enrôlement" aria-label="Code d'enrôlement">
+      <input id="enrolName" type="text" autocomplete="off"
+             placeholder="nom de l'appareil" aria-label="Nom de l'appareil">
+      <button type="button" id="enrolGo">Enrôler cet appareil</button>
+    </div>
+    <div class="row" id="rowLogin" hidden>
+      <button type="button" id="loginGo">Déverrouiller</button>
+      <button type="button" id="forgetGo" class="quiet">Oublier cet appareil</button>
+    </div>
+    <div id="enrolMsg"></div>
+  </section>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Fenêtre d'observation">
+      <button type="button" data-range="360" aria-pressed="false">6 h</button>
+      <button type="button" data-range="1440" aria-pressed="true">24 h</button>
+      <button type="button" data-range="10080" aria-pressed="false">7 j</button>
+      <button type="button" data-range="43200" aria-pressed="false">30 j</button>
+    </div>
+    <button type="button" class="ghost" id="simulate" aria-pressed="false">Simuler une coupure en cours</button>
+    <button type="button" class="ghost" id="zoomBack" hidden>← Dézoomer</button>
+    <button type="button" class="ghost" id="zoomAll" hidden>Tout voir</button>
+    <div class="seg theme" role="group" aria-label="Thème d'affichage" style="margin-left:auto">
+      <button type="button" data-theme="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-theme="light" aria-pressed="false">Clair</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Sombre</button>
+    </div>
+  </div>
+
+  <section class="recorder">
+    <div class="recorder-head">
+      <span id="ribbonRange">—</span>
+      <span id="ribbonHint">glisse sur le ruban pour zoomer</span>
+    </div>
+    <canvas id="ribbon" aria-label="Enregistrement minute par minute de la perte de paquets et de la joignabilité des segments"></canvas>
+    <div class="lanes-key">
+      <span><i class="swatch" style="background:var(--ok)"></i>0/5 perdu</span>
+      <span><i class="swatch" style="background:var(--warn)"></i>1 à 4/5</span>
+      <span><i class="swatch" style="background:var(--down)"></i>5/5</span>
+      <span><i class="swatch" style="background:var(--unknown)"></i>aucune donnée reçue</span>
+    </div>
+    <div class="readout" id="readout" role="status"></div>
+  </section>
+
+  <dl class="kpis" id="kpis"></dl>
+
+  <h2>Épisodes</h2>
+  <div id="episodes"></div>
+
+  <h2>Contrat de données</h2>
+  <p class="note">Le dashboard ne lit que ce document. Tout ce qu'il affiche en dérive : si un champ manque, la colonne correspondante disparaît. C'est la seule chose à figer avant d'écrire le script du NAS et la Lambda.</p>
+  <details>
+    <summary>Un point de mesure — ce que le NAS envoie chaque minute</summary>
+<pre>{
+  "ts":    "2026-08-02T10:23:00Z",   // horodaté par le NAS, pas par la Lambda
+  "boot":  "2026-07-30T04:12:00Z",   // démarrage du NAS : change = redémarrage
+  "sent":  5,
+  "lost":  0,                        // 0..5
+  "rtt":   { "p50": 27, "max": 94 }, // ms, sur les sondes ayant répondu
+  "seg":   { "router": true, "cpe": true, "wan": true },
+  "radio": { "sinr": 14, "rsrp": -92, "band": "n78", "cell": "4471-12" },
+  "ups":   "OL"                      // OL secteur · OB batterie
+}</pre>
+  </details>
+  <details>
+    <summary>Réponse de la Lambda au GET du front</summary>
+<pre>GET /points?from=2026-08-01T10:00:00Z&to=2026-08-02T10:00:00Z
+
+{
+  "from": "...", "to": "...", "step": 60,
+  "points": [ /* les objets ci-dessus, triés par ts croissant */ ],
+  "gaps":   [ { "from": "...", "to": "...", "minutes": 7 } ]
+}</pre>
+  </details>
+  <p class="note">Les trous sont calculés côté serveur et renvoyés explicitement, plutôt que déduits par le navigateur. Même règle pour tout le monde, et une alerte SNS pourra réutiliser le même calcul le jour où tu en voudras une.</p>
+
+  <footer>Données de démonstration générées dans le navigateur · aucun appel réseau · remplacer <code>loadPoints()</code> par l'appel à ta Lambda</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. SOURCE DE DONNÉES
+   Seule fonction à remplacer pour brancher la vraie Lambda.
+   ============================================================ */
+/* ---- CONFIGURATION -------------------------------------------------------
+   Laisser API_BASE vide fait tourner le tableau de bord sur des données de
+   démonstration générées dans le navigateur. Renseigner l'URL de la Lambda de
+   lecture le branche sur les vraies mesures.                               */
+const API_BASE  = "https://5yvfvaj6wmsnxvghzy4tr76qju0xyljh.lambda-url.eu-west-3.on.aws/";     // ex. "https://xxxx.lambda-url.eu-west-3.on.aws/"
+const READ_TOKEN = "";    // à renseigner seulement si la pile a été déployée avec ReadToken
+/* ------------------------------------------------------------------------- */
+
+const MINUTE = 60000;
+const TOTAL_MINUTES = 43200;                 // 30 jours d'historique simulé
+let NOW = Date.now() - (Date.now() % MINUTE);
+let START = NOW - (TOTAL_MINUTES - 1) * MINUTE;
+
+function makeDemoSeries(){
+  const pts = [];
+  let boot = new Date(NOW - 26 * 24 * 60 * MINUTE).toISOString();
+  const drop = new Map();                     // index -> {len, kind}
+  const scripted = [
+    { at: TOTAL_MINUTES - 41,   len: 38, kind: "wan"   },
+    { at: TOTAL_MINUTES - 9100, len: 14, kind: "wan"   },
+    { at: TOTAL_MINUTES - 8600, len: 22, kind: "power" },
+    { at: TOTAL_MINUTES - 17300,len:  6, kind: "nas"   },
+    { at: TOTAL_MINUTES - 25100,len:  9, kind: "wan"   },
+    { at: TOTAL_MINUTES - 33000,len:  4, kind: "wan"   }
+  ];
+  scripted.forEach(s => drop.set(s.at, s));
+
+  let skipUntil = -1, pending = null;
+  for (let i = 0; i < TOTAL_MINUTES; i++){
+    const ts = START + i * MINUTE;
+    const d  = new Date(ts);
+    const hour = d.getHours();
+
+    if (drop.has(i)) { const s = drop.get(i); skipUntil = i + s.len; pending = s; }
+    if (i < skipUntil) continue;              // trou : rien n'est écrit en base
+    if (pending && i >= skipUntil){
+      if (pending.kind === "nas") boot = new Date(ts - 40000).toISOString();
+      pending = null;
+    }
+
+    // congestion cellulaire en soirée
+    const peak = hour >= 20 && hour < 24;
+    const rush = peak ? 1 : (hour >= 12 && hour < 14 ? 0.4 : 0);
+    let sinr = 15 - rush * 9 + (Math.random() * 5 - 2.5);
+    let lost = 0;
+    if (Math.random() < 0.012 + rush * 0.10) lost = 1;
+    if (Math.random() < 0.004 + rush * 0.045) lost = 2;
+    if (Math.random() < 0.0012 + rush * 0.012) lost = 3;
+    if (sinr < 2 && Math.random() < 0.3) lost = Math.min(5, lost + 2);
+
+    const base = 24 + rush * 55 + Math.max(0, (8 - sinr)) * 5.5;
+    const p50  = Math.round(base + Math.random() * 12);
+    const max  = Math.round(p50 * (1.6 + Math.random() * 2.4) + lost * 40);
+
+    pts.push({
+      ts: new Date(ts).toISOString(),
+      boot,
+      sent: 5,
+      lost,
+      rtt: { p50, max },
+      seg: { router: true, cpe: true, wan: lost < 5 },
+      radio: {
+        sinr: Math.round(sinr * 10) / 10,
+        rsrp: Math.round(-84 - (15 - sinr) * 2.2),
+        band: sinr > 9 ? "n78" : "n28",
+        cell: sinr > 9 ? "4471-12" : "4471-07"
+      },
+      ups: "OL"
+    });
+  }
+
+  // la coupure secteur : les points qui l'encadrent portent l'état batterie
+  const powerAt = scripted.find(s => s.kind === "power").at;
+  pts.forEach((p, idx) => {
+    const i = Math.round((Date.parse(p.ts) - START) / MINUTE);
+    if (i >= powerAt - 3 && i <= powerAt + 34) p.ups = "OB";
+  });
+  return pts;
+}
+
+/* ============================================================
+   1 bis. IDENTITÉ DE L'APPAREIL — WebAuthn
+
+   La clé privée est générée et scellée par l'authentificateur de l'appareil
+   (Touch ID, Windows Hello, Secure Enclave Android). Elle n'en sort jamais.
+   Le navigateur ne conserve localement que l'identifiant d'appareil et un jeton
+   de session court — rien qui, volé seul, permette de se faire passer pour lui.
+
+   L'origine est vérifiée par le navigateur ET par la Lambda : une page qui
+   imiterait celle-ci sur un autre domaine ne peut pas obtenir de signature
+   exploitable. C'est ce qui rend le procédé insensible à l'hameçonnage.
+   ============================================================ */
+const b64u = {
+  dec: s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")
+            .padEnd(s.length + (4 - s.length % 4) % 4, "=")), c => c.charCodeAt(0)),
+  enc: b => btoa(String.fromCharCode(...new Uint8Array(b)))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+};
+
+const Device = {
+  id: null, session: null,
+
+  load(){
+    try {
+      this.id = localStorage.getItem("lm.device");
+      this.session = localStorage.getItem("lm.session");
+      const exp = Number(localStorage.getItem("lm.exp") || 0);
+      if (exp && exp * 1000 < Date.now()) this.session = null;   // session périmée
+    } catch (e) { /* stockage indisponible */ }
+    return { known: !!this.id, live: !!this.session };
+  },
+  _persist(d){
+    this.id = d.device || this.id;
+    this.session = d.session;
+    try {
+      localStorage.setItem("lm.device", this.id);
+      localStorage.setItem("lm.session", d.session);
+      localStorage.setItem("lm.exp", String(d.expires));
+    } catch (e) {}
+  },
+  forgetSession(){
+    this.session = null;
+    try { localStorage.removeItem("lm.session"); } catch (e) {}
+  },
+  forgetAll(){
+    this.forgetSession(); this.id = null;
+    try { localStorage.removeItem("lm.device"); localStorage.removeItem("lm.exp"); } catch (e) {}
+  },
+
+  async _post(op, payload){
+    const r = await fetch(API_BASE, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ op, ...payload }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `erreur ${r.status}`);
+    return d;
+  },
+
+  supported(){
+    return !!(window.PublicKeyCredential && navigator.credentials);
+  },
+
+  /** Enrôlement : crée une clé dans l'appareil et enregistre sa partie publique. */
+  async register(code, name){
+    const o = await this._post("register/begin", { code, name });
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: b64u.dec(o.challenge),
+      rp: o.rp,
+      user: { id: b64u.dec(o.user.id), name: o.user.name, displayName: o.user.displayName },
+      pubKeyCredParams: o.pubKeyCredParams,
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "required",
+        authenticatorAttachment: "platform",   // la clé reste dans CET appareil
+      },
+      attestation: "none",
+      timeout: 60000,
+    }});
+    this._persist(await this._post("register/finish", {
+      challenge: o.challenge,
+      attestationObject: b64u.enc(cred.response.attestationObject),
+      clientDataJSON: b64u.enc(cred.response.clientDataJSON),
+    }));
+  },
+
+  /** Connexion : défi-réponse signé par l'appareil, déverrouillé par biométrie. */
+  async login(){
+    const o = await this._post("auth/begin", { device: this.id });
+    const cred = await navigator.credentials.get({ publicKey: {
+      challenge: b64u.dec(o.challenge),
+      rpId: o.rpId,
+      allowCredentials: (o.allowCredentials || []).map(c => ({ type: "public-key", id: b64u.dec(c.id) })),
+      userVerification: "required",
+      timeout: 60000,
+    }});
+    this._persist(await this._post("auth/finish", {
+      device: this.id,
+      credentialId: b64u.enc(cred.rawId),
+      challenge: o.challenge,
+      authenticatorData: b64u.enc(cred.response.authenticatorData),
+      clientDataJSON: b64u.enc(cred.response.clientDataJSON),
+      signature: b64u.enc(cred.response.signature),
+    }));
+  },
+};
+
+function lock(on){ document.body.dataset.locked = on ? "1" : "0"; }
+
+let DEMO = null;   // série de démonstration, générée une seule fois
+
+/** Charge la fenêtre demandée : API si configurée, sinon données de démonstration. */
+async function loadPoints(from, to){
+  if (!API_BASE){
+    if (!DEMO) DEMO = makeDemoSeries();
+    const points = DEMO.filter(p => {
+      const t = Date.parse(p.ts);
+      return t >= from && t <= to;
+    });
+    return { points, gaps: computeGaps(points) };
+  }
+
+  const url = new URL(API_BASE);
+  url.searchParams.set("from", new Date(from).toISOString());
+  url.searchParams.set("to", new Date(to).toISOString());
+  url.searchParams.set("max", "3000");
+
+  const headers = READ_TOKEN ? { "X-Read-Token": READ_TOKEN } : {};
+  if (Device.session) headers["X-Session"] = Device.session;
+
+  const res = await fetch(url, { headers, cache: "no-store" });
+  if (res.status === 401){
+    Device.forgetSession();      // l'appareil reste enrôlé : une biométrie suffit
+    lock(true);
+    showAccess();
+    throw new Error("session expirée");
+  }
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const d = await res.json();
+
+  // les trous renvoyés par l'API sont des dates ; le front travaille en ms
+  const points = d.points || [];
+  const byTs = new Map(points.map(p => [p.ts, p]));
+  const gaps = (d.gaps || []).map(g => ({
+    from: Date.parse(g.from), to: Date.parse(g.to), minutes: g.minutes,
+    before: byTs.get(g.from) || { ups: g.ups_before, boot: g.boot_before },
+    after:  byTs.get(g.to)   || { ups: g.ups_after,  boot: g.boot_after },
+  }));
+  return { points, gaps, episodes: d.episodes || [],
+           source: d.source || "raw",
+           step: Math.max(1, d.minutes_per_point || 1) };
+}
+
+function computeGaps(points){
+  const gaps = [];
+  for (let i = 1; i < points.length; i++){
+    const prev = Date.parse(points[i-1].ts), cur = Date.parse(points[i].ts);
+    const missing = Math.round((cur - prev) / MINUTE) - 1;
+    if (missing > 0) gaps.push({ from: prev + MINUTE, to: cur - MINUTE, minutes: missing, before: points[i-1], after: points[i] });
+  }
+  return gaps;
+}
+
+/* ============================================================
+   2. QUALIFICATION
+   ============================================================ */
+const SIM = { on: false };
+
+function classifyGap(g){
+  if (g.before.ups === "OB" || g.after.ups === "OB")
+    return { kind: "power", label: "Coupure secteur", cls: "t-power" };
+  if (g.before.boot !== g.after.boot)
+    return { kind: "nas", label: "NAS redémarré", cls: "t-nas" };
+  return { kind: "wan", label: "Lien 5G perdu", cls: "t-wan" };
+}
+
+function labelFor(cause){
+  if (/courant/i.test(cause)) return { kind: "power", label: "Coupure secteur", cls: "t-power" };
+  if (/NAS/i.test(cause))     return { kind: "nas",   label: "NAS redémarré",  cls: "t-nas" };
+  return { kind: "wan", label: "Lien perdu", cls: "t-wan" };
+}
+
+function buildEpisodes(points, gaps){
+  // Les coupures enregistrées par le watchdog font foi : elles survivent à la
+  // purge des minutes brutes, donc l'historique long reste exact.
+  const server = (DATA && DATA.episodes) || [];
+  const eps = server.length
+    ? server.map(e => ({
+        start: Date.parse(e.start), minutes: e.minutes, ...labelFor(e.cause),
+        detail: `${e.minutes} min sans mesure`
+      }))
+    : gaps.map(g => ({
+        start: g.from, minutes: g.minutes, ...classifyGap(g),
+        detail: `${g.minutes} min sans mesure`
+      }));
+  // séquences dégradées : ≥ 3 minutes consécutives avec perte, sans trou
+  let run = [];
+  const flush = () => {
+    if (run.length >= 3){
+      const worst = Math.max(...run.map(p => p.lost));
+      const sinr  = (run.reduce((a,p) => a + p.radio.sinr, 0) / run.length).toFixed(1);
+      eps.push({
+        start: Date.parse(run[0].ts), minutes: run.length,
+        kind: "degraded", label: "Dégradation", cls: "t-degraded",
+        detail: `pic à ${worst}/5 · SINR moyen ${sinr} dB`
+      });
+    }
+    run = [];
+  };
+  points.forEach(p => { p.lost > 0 ? run.push(p) : flush(); });
+  flush();
+  return eps.sort((a,b) => b.start - a.start);
+}
+
+function currentState(points){
+  if (SIM.on) return { state: "down", since: NOW - 7 * MINUTE, detail: "aucune mesure reçue · secteur présent · NAS non redémarré" };
+  const last = points[points.length - 1];
+  const age  = Math.round((NOW - Date.parse(last.ts)) / MINUTE);
+  if (age >= 2) return { state: "down", since: Date.parse(last.ts), detail: `${age} min sans mesure` };
+  const tail = points.slice(-10);
+  const avg  = tail.reduce((a,p) => a + p.lost, 0) / tail.length;
+  if (avg >= 1) return { state: "degraded", since: Date.parse(tail[0].ts), detail: `perte moyenne ${(avg/5*100).toFixed(0)} % sur 10 min · SINR ${last.radio.sinr} dB` };
+  return { state: "ok", since: null, detail: `RTT ${last.rtt.p50} ms · SINR ${last.radio.sinr} dB · bande ${last.radio.band} · cellule ${last.radio.cell}` };
+}
+
+/* ============================================================
+   3. RENDU
+   ============================================================ */
+const CSS = getComputedStyle(document.documentElement);
+const C = k => CSS.getPropertyValue(k).trim();
+
+let DATA = null, RANGE = 1440, COLS = [], geom = null;
+let VIEW = { from: NOW - (1440 - 1) * MINUTE, to: NOW };  // fenêtre affichée
+const ZOOM = [];                                          // pile des fenêtres précédentes
+const MIN_SPAN = 5;                                       // minutes : plancher du zoom
+let brush = null;                                         // sélection en cours
+
+const canvas  = document.getElementById("ribbon");
+const ctx     = canvas.getContext("2d");
+const readout = document.getElementById("readout");
+
+function bucketize(points, fromTs, toTs){
+  const step = (DATA && DATA.step) || 1;      // minutes couvertes par point d'API
+  const byMinute = new Map();
+  points.forEach(p => {
+    const t = Date.parse(p.ts);
+    if (t >= fromTs && t <= toTs)
+      byMinute.set(Math.floor(Math.round((t - fromTs) / MINUTE) / step), p);
+  });
+  const at = j => byMinute.get(Math.floor(j / step));
+  const span  = Math.round((toTs - fromTs) / MINUTE) + 1;
+  const width = canvas.clientWidth || 900;
+  const perCol = Math.max(1, Math.ceil(span / Math.floor(width / 3)));
+  const cols = [];
+  for (let i = 0; i < span; i += perCol){
+    const slice = [];
+    let missing = 0;
+    for (let j = i; j < Math.min(i + perCol, span); j++){
+      const p = at(j);
+      p ? slice.push(p) : missing++;
+    }
+    cols.push({
+      ts: fromTs + i * MINUTE,
+      minutes: perCol,
+      gap: slice.length === 0,
+      partialGap: missing > 0 && slice.length > 0,
+      lost: slice.length ? Math.max(...slice.map(p => p.lost)) : null,
+      p50: slice.length ? Math.round(slice.reduce((a,p) => a + p.rtt.p50, 0) / slice.length) : null,
+      max: slice.length ? Math.max(...slice.map(p => p.rtt.max)) : null,
+      sinr: slice.length ? (slice.reduce((a,p) => a + p.radio.sinr, 0) / slice.length).toFixed(1) : null,
+      point: slice.length ? slice[slice.length - 1] : null
+    });
+  }
+  return cols;
+}
+
+function colorFor(c){
+  if (c.gap) return C("--unknown");
+  if (c.lost >= 5) return C("--down");
+  if (c.lost > 0)  return C("--warn");
+  return C("--ok");
+}
+
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const axisH = 16, laneH = 7, laneGap = 3, lanes = 3;
+  const lanesH = lanes * (laneH + laneGap);
+  const bandH = h - axisH - lanesH - 10;
+  const cw = w / COLS.length;
+  const barW = Math.max(1, cw - (cw > 5 ? 1 : 0));
+  geom = { w, h, bandH, cw, axisH, laneH, laneGap, lanesTop: bandH + 10 };
+
+  // réglure horizontale : 1/5, 2/5 …
+  ctx.strokeStyle = C("--rule"); ctx.lineWidth = 1;
+  for (let k = 1; k <= 5; k++){
+    const y = Math.round(bandH - (k / 5) * bandH) + 0.5;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  COLS.forEach((c, i) => {
+    const x = i * cw;
+    if (c.gap){
+      ctx.save();
+      ctx.fillStyle = C("--unknown"); ctx.globalAlpha = .28;
+      ctx.fillRect(x, 0, barW, bandH);
+      ctx.globalAlpha = .85; ctx.strokeStyle = C("--unknown"); ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let y = -bandH; y < bandH; y += 5){ ctx.moveTo(x, y + bandH); ctx.lineTo(x + barW, y); }
+      ctx.save(); ctx.beginPath(); ctx.rect(x, 0, barW, bandH); ctx.clip(); ctx.stroke(); ctx.restore();
+      ctx.restore();
+    } else {
+      const frac = c.lost / 5;
+      const bh = Math.max(2, frac * bandH);
+      ctx.fillStyle = colorFor(c);
+      ctx.globalAlpha = c.lost === 0 ? .5 : 1;
+      ctx.fillRect(x, bandH - bh, barW, bh);
+      ctx.globalAlpha = 1;
+    }
+    // pistes de segments
+    const seg = c.point ? c.point.seg : null;
+    [["router", seg && seg.router], ["cpe", seg && seg.cpe], ["wan", seg && seg.wan]]
+      .forEach((s, li) => {
+        const y = geom.lanesTop + li * (laneH + laneGap);
+        ctx.fillStyle = c.gap ? C("--unknown") : (s[1] ? C("--ok") : C("--down"));
+        ctx.globalAlpha = c.gap ? .3 : (s[1] ? .32 : 1);
+        ctx.fillRect(x, y, barW, laneH);
+        ctx.globalAlpha = 1;
+      });
+  });
+
+  // sélection de zoom en cours
+  if (brush && brush.x1 !== null){
+    const a = Math.min(brush.x0, brush.x1), b = Math.max(brush.x0, brush.x1);
+    const hh = bandH + lanesH + 10;
+    ctx.fillStyle = C("--accent"); ctx.globalAlpha = .15;
+    ctx.fillRect(a, 0, b - a, hh);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = C("--accent"); ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a + .5, 0); ctx.lineTo(a + .5, hh);
+    ctx.moveTo(b - .5, 0); ctx.lineTo(b - .5, hh);
+    ctx.stroke();
+  }
+
+  // axe temporel
+  ctx.fillStyle = C("--graphite");
+  ctx.font = '10px "IBM Plex Mono", monospace';
+  ctx.textBaseline = "top";
+  const ticks = Math.min(8, Math.floor(w / 96));
+  for (let t = 0; t <= ticks; t++){
+    const i = Math.round((COLS.length - 1) * (t / ticks));
+    const d = new Date(COLS[i].ts);
+    const label = (VIEW.to - VIEW.from) <= 2 * 1440 * MINUTE
+      ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+    ctx.textAlign = t === 0 ? "left" : (t === ticks ? "right" : "center");
+    ctx.fillText(label, (i / (COLS.length - 1)) * w, h - geom.axisH + 3);
+  }
+
+  // légende des pistes, posée sur un fond pour rester lisible sur les barres
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const names = w < 460 ? ["rtr", "box", "net"] : ["routeur", "box 5G", "internet"];
+  names.forEach((name, li) => {
+    const y = geom.lanesTop + li * (laneH + laneGap) + laneH / 2;
+    const tw = ctx.measureText(name).width;
+    ctx.fillStyle = C("--card"); ctx.globalAlpha = .92;
+    ctx.fillRect(0, y - laneH / 2 - 1, tw + 8, laneH + 2);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C("--graphite");
+    ctx.fillText(name, 3, y);
+  });
+}
+
+function fmtDur(min){
+  if (min < 60) return min + " min";
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h} h ${String(m).padStart(2,"0")}` : `${h} h`;
+}
+
+function renderKpis(points, eps, fromTs, toTs){
+  const inWin = points.filter(p => { const t = Date.parse(p.ts); return t >= fromTs && t <= toTs; });
+  const span  = Math.round((toTs - fromTs) / MINUTE) + 1;
+  const win   = e => e.start >= fromTs && e.start <= toTs;
+  const outMin = eps.filter(e => win(e) && e.kind !== "degraded")
+                    .reduce((a,e) => a + e.minutes, 0);
+  const wanEps = eps.filter(e => win(e) && e.kind === "wan").length;
+  const loss = inWin.length ? inWin.reduce((a,p) => a + p.lost, 0) / (inWin.length * 5) * 100 : 0;
+  const rtts = inWin.map(p => p.rtt.p50).sort((a,b) => a - b);
+  const p95  = rtts.length ? rtts[Math.floor(rtts.length * .95)] : 0;
+
+  document.getElementById("kpis").innerHTML = [
+    ["Disponibilité", ((span - outMin) / span * 100).toFixed(3), "%"],
+    ["Indisponible", fmtDur(outMin), ""],
+    ["Coupures de lien", wanEps, ""],
+    ["Perte moyenne", loss.toFixed(2), "%"],
+    ["RTT p95", p95, "ms"]
+  ].map(([k, v, u]) => `<div class="kpi"><dt>${k}</dt><dd>${v}${u ? `<small>${u}</small>` : ""}</dd></div>`).join("");
+}
+
+function renderEpisodes(eps, fromTs, toTs){
+  const rows = eps.filter(e => e.start >= fromTs && e.start <= toTs);
+  const el = document.getElementById("episodes");
+  if (!rows.length){
+    el.innerHTML = `<p class="empty">Aucun épisode sur cette fenêtre. Dézoome ou élargis la période pour voir l'historique.</p>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr>
+      <th style="width:22%">Début</th><th style="width:14%">Durée</th>
+      <th style="width:22%">Qualification</th><th>Relevé</th>
+    </tr></thead><tbody>${rows.slice(0, 14).map(e => `
+      <tr>
+        <td data-label="Début">${new Date(e.start).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })}</td>
+        <td data-label="Durée">${fmtDur(e.minutes)}</td>
+        <td data-label="Type"><span class="tag ${e.cls}">${e.label}</span></td>
+        <td data-label="Relevé">${e.detail}</td>
+      </tr>`).join("")}</tbody></table>`;
+}
+
+function renderVerdict(ds){
+  const points = (ds && ds.points) || [];
+  if (!points.length){
+    document.getElementById("verdictState").textContent = "En attente de mesures";
+    document.getElementById("verdictDetail").textContent =
+      "Aucun point reçu sur la dernière heure. Vérifie que l'agent tourne sur le NAS.";
+    document.getElementById("verdictTimer").innerHTML = "<span>dernier point</span>—";
+    document.getElementById("lastSeen").textContent = "—";
+    document.getElementById("verdict").className = "verdict is-down";
+    return;
+  }
+  const s = currentState(points);
+  const box = document.getElementById("verdict");
+  box.className = "verdict" + (s.state === "down" ? " is-down" : s.state === "degraded" ? " is-degraded" : "");
+  document.getElementById("verdictState").textContent =
+    s.state === "down" ? "Coupure en cours" : s.state === "degraded" ? "Lien dégradé" : "Lien nominal";
+  document.getElementById("verdictDetail").textContent = s.detail;
+  const timer = document.getElementById("verdictTimer");
+  if (s.since){
+    timer.innerHTML = `<span>en cours depuis</span>${fmtDur(Math.max(1, Math.round((NOW - s.since) / MINUTE)))}`;
+  } else {
+    const gaps = (ds.gaps || []);
+    timer.innerHTML = `<span>dernier incident</span>${
+      gaps.length ? fmtDur(Math.round((NOW - gaps[gaps.length-1].to) / MINUTE)) + " plus tôt" : "—"}`;
+  }
+  const last = points[points.length - 1];
+  document.getElementById("lastSeen").textContent =
+    SIM.on ? "il y a 7 min" : new Date(last.ts).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+}
+
+function fmtTs(t){
+  return new Date(t).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+function render(){
+  COLS = bucketize(DATA.points, VIEW.from, VIEW.to);
+  const eps = buildEpisodes(DATA.points, DATA.gaps);
+  const per = COLS[0].minutes;
+  document.getElementById("ribbonRange").textContent =
+    `${fmtTs(VIEW.from)} → ${VIEW.to >= NOW - MINUTE ? "maintenant" : fmtTs(VIEW.to)} · 1 colonne = ${per === 1 ? "1 minute" : per + " min"}`;
+  document.getElementById("ribbonHint").textContent =
+    per === 1 ? "résolution maximale · une colonne = une mesure" : "glisse sur le ruban pour zoomer";
+  draw();
+  renderKpis(DATA.points, eps, VIEW.from, VIEW.to);
+  renderEpisodes(eps, VIEW.from, VIEW.to);
+  renderVerdict(LATEST || DATA);
+  const zoomed = ZOOM.length > 0;
+  document.getElementById("zoomBack").hidden = !zoomed;
+  document.getElementById("zoomAll").hidden  = !zoomed;
+}
+
+/* ---------- zoom ---------- */
+function setView(from, to, push = true){
+  if (to - from < MIN_SPAN * MINUTE){
+    const c = (from + to) / 2;
+    from = c - (MIN_SPAN / 2) * MINUTE;
+    to   = c + (MIN_SPAN / 2) * MINUTE;
+  }
+  from = Math.max(START, from);
+  to   = Math.min(NOW, Math.max(to, from + MIN_SPAN * MINUTE));
+  if (push) ZOOM.push({ ...VIEW });
+  const shrinking = (to - from) <= (VIEW.to - VIEW.from);
+  VIEW = { from: Math.round(from / MINUTE) * MINUTE, to: Math.round(to / MINUTE) * MINUTE };
+  if (shrinking && DATA) render();     // rendu immédiat : les données couvrent déjà la zone
+  scheduleRefresh();                   // puis on va chercher la résolution fine
+}
+function tsAtX(clientX){
+  const r = canvas.getBoundingClientRect();
+  const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+  return VIEW.from + f * (VIEW.to - VIEW.from);
+}
+function zoomBackOne(){ if (ZOOM.length){ VIEW = ZOOM.pop(); scheduleRefresh(); } }
+function resetView(){ ZOOM.length = 0; VIEW = { from: NOW - (RANGE - 1) * MINUTE, to: NOW }; refresh(); }
+
+/* ---------- lecture au survol ---------- */
+function showReadout(clientX, clientY){
+  if (!geom || !COLS.length) return;
+  const r = canvas.getBoundingClientRect();
+  const i = Math.max(0, Math.min(COLS.length - 1, Math.floor((clientX - r.left) / geom.cw)));
+  const c = COLS[i];
+  const t = new Date(c.ts).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  readout.innerHTML = c.gap
+    ? `<b class="hd">${t}</b><span class="k">état</span>aucune donnée<br><span class="k">durée bloc</span>${c.minutes} min`
+    : `<b class="hd">${t}</b>
+       <span class="k">perte</span>${c.lost}/5<br>
+       ${c.point.lost_worst > c.lost ? `<span class="k">pire cible</span>${c.point.lost_worst}/5<br>` : ""}
+       <span class="k">rtt p50</span>${c.p50} ms<br>
+       <span class="k">rtt max</span>${c.max} ms<br>
+       <span class="k">sinr</span>${c.sinr} dB<br>
+       <span class="k">cellule</span>${c.point.radio.cell} · ${c.point.radio.band}<br>
+       <span class="k">onduleur</span>${c.point.ups === "OB" ? "batterie" : "secteur"}`;
+  const host = canvas.parentElement.getBoundingClientRect();
+  const x = Math.min(clientX - host.left + 14, host.width - 216);
+  readout.style.left = Math.max(6, x) + "px";
+  readout.style.top  = Math.min(clientY - host.top + 12, host.height - 130) + "px";
+  readout.classList.add("on");
+}
+let dragFrom = null, dragged = false;
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  dragFrom = e.clientX; dragged = false;
+  brush = { x0: e.clientX - canvas.getBoundingClientRect().left, x1: null };
+  showReadout(e.clientX, e.clientY);
+});
+canvas.addEventListener("pointermove", e => {
+  showReadout(e.clientX, e.clientY);
+  if (dragFrom === null) return;
+  brush.x1 = e.clientX - canvas.getBoundingClientRect().left;
+  if (Math.abs(e.clientX - dragFrom) > 4) dragged = true;
+  draw();
+});
+function endDrag(e){
+  if (dragFrom === null) return;
+  const x0 = dragFrom, x1 = e.clientX;
+  dragFrom = null; brush = null;
+  if (dragged && Math.abs(x1 - x0) > 8) setView(tsAtX(Math.min(x0, x1)), tsAtX(Math.max(x0, x1)));
+  else draw();
+}
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", () => { dragFrom = null; brush = null; draw(); });
+canvas.addEventListener("pointerleave", () => readout.classList.remove("on"));
+canvas.addEventListener("dblclick", e => { e.preventDefault(); zoomBackOne(); });
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const c = tsAtX(e.clientX);
+  const k = e.deltaY > 0 ? 1.4 : 1 / 1.4;
+  if (!ZOOM.length) ZOOM.push({ ...VIEW });
+  setView(c - (c - VIEW.from) * k, c + (VIEW.to - c) * k, false);
+}, { passive: false });
+document.addEventListener("pointerdown", e => {
+  if (!canvas.contains(e.target)) readout.classList.remove("on");
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") resetView();
+});
+document.getElementById("zoomBack").addEventListener("click", zoomBackOne);
+document.getElementById("zoomAll").addEventListener("click", resetView);
+
+/* ---------- contrôles ---------- */
+const rangeBtns = document.querySelectorAll(".seg:not(.theme) button");
+rangeBtns.forEach(b => {
+  b.addEventListener("click", () => {
+    rangeBtns.forEach(o => o.setAttribute("aria-pressed", "false"));
+    b.setAttribute("aria-pressed", "true");
+    RANGE = Number(b.dataset.range);
+    ZOOM.length = 0;
+    VIEW = { from: NOW - (RANGE - 1) * MINUTE, to: NOW };
+    refresh();
+  });
+});
+
+/* ---------- thème : système par défaut, surcharge manuelle temporaire ---------- */
+const darkMq = window.matchMedia("(prefers-color-scheme: dark)");
+const themeBtns = document.querySelectorAll(".seg.theme button");
+let themeMode = "auto";
+
+function applyTheme(){
+  const root = document.documentElement;
+  if (themeMode === "auto") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", themeMode);
+  if (COLS.length) requestAnimationFrame(draw);   // le canvas relit les tokens CSS
+}
+themeBtns.forEach(b => {
+  b.addEventListener("click", () => {
+    themeBtns.forEach(o => o.setAttribute("aria-pressed", "false"));
+    b.setAttribute("aria-pressed", "true");
+    themeMode = b.dataset.theme;
+    applyTheme();
+  });
+});
+darkMq.addEventListener("change", () => { if (themeMode === "auto") applyTheme(); });
+const simBtn = document.getElementById("simulate");
+simBtn.addEventListener("click", () => {
+  SIM.on = !SIM.on;
+  simBtn.setAttribute("aria-pressed", String(SIM.on));
+  simBtn.textContent = SIM.on ? "Revenir à l'état réel" : "Simuler une coupure en cours";
+  renderVerdict(LATEST || DATA);
+});
+let rAF;
+window.addEventListener("resize", () => { cancelAnimationFrame(rAF); rAF = requestAnimationFrame(render); });
+
+/* ---------- chargement et rafraîchissement ---------- */
+let LATEST = null, seq = 0, pending = null;
+
+async function refresh(){
+  const mine = ++seq;
+  NOW = Date.now() - (Date.now() % MINUTE);
+  const hint = document.getElementById("ribbonHint");
+  try {
+    const d = await loadPoints(VIEW.from, VIEW.to);
+    if (mine !== seq) return;                       // une requête plus récente a pris la main
+    DATA = d;
+    LATEST = (VIEW.to >= NOW - 2 * MINUTE)
+      ? d
+      : (LATEST || await loadPoints(NOW - 60 * MINUTE, NOW));
+    render();
+  } catch (e) {
+    hint.textContent = `lecture impossible — ${e.message}`;
+    if (!DATA) {
+      document.getElementById("episodes").innerHTML =
+        `<p class="empty">La Lambda de lecture ne répond pas. Vérifie API_BASE, l'origine autorisée (CORS) et les journaux CloudWatch.</p>`;
+    }
+  }
+}
+function scheduleRefresh(){
+  clearTimeout(pending);
+  pending = setTimeout(refresh, 250);               // regroupe les zooms successifs
+}
+setInterval(() => {
+  if (!ZOOM.length && document.body.dataset.locked !== "1") refresh();
+}, 60000);
+
+const $ = id => document.getElementById(id);
+
+function showAccess(){
+  const known = !!Device.id;
+  $("rowEnrol").hidden = known;
+  $("rowLogin").hidden = !known;
+  $("enrolTitle").textContent = known ? "Déverrouille ce tableau de bord" : "Cet appareil n'est pas encore autorisé";
+  if (known){
+    $("enrolText").textContent =
+      "Cet appareil est enrôlé. Une vérification biométrique ouvre une session, " +
+      "valable plusieurs heures avant qu'on te la redemande.";
+  }
+  if (!Device.supported()){
+    $("enrolMsg").className = "err";
+    $("enrolMsg").textContent =
+      "Ce navigateur ne gère pas WebAuthn. Utilise Safari, Chrome ou Firefox à jour, en HTTPS.";
+  }
+}
+
+async function attempt(fn, working){
+  const msg = $("enrolMsg");
+  msg.className = ""; msg.textContent = working;
+  try {
+    await fn();
+    msg.textContent = "";
+    lock(false);
+    refresh();
+  } catch (e) {
+    msg.className = "err";
+    msg.textContent = e.name === "NotAllowedError"
+      ? "Vérification annulée ou expirée."
+      : (e.message || String(e));
+  }
+}
+
+$("enrolGo").addEventListener("click", () => attempt(
+  () => Device.register($("enrolCode").value.trim().toLowerCase(), $("enrolName").value),
+  "Suis l'invite de ton appareil…"));
+
+$("loginGo").addEventListener("click", () => attempt(
+  () => Device.login(), "Vérification en cours…"));
+
+$("forgetGo").addEventListener("click", () => {
+  Device.forgetAll();
+  $("enrolMsg").textContent = "";
+  showAccess();
+});
+
+$("enrolCode").addEventListener("keydown", e => { if (e.key === "Enter") $("enrolGo").click(); });
+
+(async function start(){
+  if (!API_BASE){ lock(false); refresh(); return; }   // mode démonstration
+  const st = Device.load();
+  if (st.live){ lock(false); refresh(); return; }     // session encore valable
+  lock(true);
+  showAccess();
+  // appareil connu : on propose la biométrie tout de suite, sans forcer
+  if (st.known && Device.supported()) attempt(() => Device.login(), "Vérification en cours…");
+})();
+</script>
+</body>
+</html>
