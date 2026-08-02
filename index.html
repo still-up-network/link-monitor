@@ -1224,6 +1224,7 @@ $("loginGo").addEventListener("click", () => attempt(
   () => Device.login(), "Vérification en cours…"));
 
 async function revokeThisDevice(){
+  if (!confirm("Révoquer cet appareil ? Il perdra l'accès au tableau de bord, et il faudra un nouveau code d'enrôlement pour le retrouver.")) return;
   const msg = $("enrolMsg");
   lock(true); showAccess();
   msg.className = ""; msg.textContent = "Révocation…";
