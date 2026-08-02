@@ -913,11 +913,11 @@ function draw(){
   // légende des pistes, posée sur un fond pour rester lisible sur les barres
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   const names = w < 460 ? ["AP", "box", "net"] : ["AP Wi-Fi", "box 5G", "internet"];
+  const maxW = Math.max(...names.map(n => ctx.measureText(n).width));
   names.forEach((name, li) => {
     const y = geom.lanesTop + li * (laneH + laneGap) + laneH / 2;
-    const tw = ctx.measureText(name).width;
     ctx.fillStyle = C("--card"); ctx.globalAlpha = .92;
-    ctx.fillRect(0, y - laneH / 2 - 1, tw + 8, laneH + 2);
+    ctx.fillRect(0, y - laneH / 2 - 1, maxW + 8, laneH + 2);
     ctx.globalAlpha = 1;
     ctx.fillStyle = C("--graphite");
     ctx.fillText(name, 3, y);
