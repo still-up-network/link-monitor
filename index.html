@@ -933,8 +933,11 @@ function renderVerdict(ds){
     timer.innerHTML = `<span>en cours depuis</span>${fmtDur(Math.max(1, Math.round((NOW - s.since) / MINUTE)))}`;
   } else {
     const gaps = (ds.gaps || []);
-    timer.innerHTML = `<span>dernier incident</span>${
-      gaps.length ? fmtDur(Math.round((NOW - gaps[gaps.length-1].to) / MINUTE)) + " plus tôt" : "—"}`;
+    const eps  = (ds.episodes || []);
+    const lastT = Math.max(
+      gaps.length ? gaps[gaps.length - 1].to : 0,
+      eps.length ? Date.parse(eps[eps.length - 1].start) : 0);
+    timer.innerHTML = `<span>dernier incident</span>${lastT ? fmtTs(lastT) : "—"}`;
   }
   const last = points[points.length - 1];
   document.getElementById("lastSeen").textContent =
