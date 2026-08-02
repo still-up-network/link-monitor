@@ -677,6 +677,7 @@ function classifyGap(g){
 
 function labelFor(cause){
   if (/courant/i.test(cause)) return { kind: "power", label: "Coupure secteur", cls: "t-power" };
+  if (/sonde/i.test(cause))   return { kind: "nas",   label: "Sonde arrêtée",  cls: "t-nas" };
   if (/NAS/i.test(cause))     return { kind: "nas",   label: "NAS redémarré",  cls: "t-nas" };
   return { kind: "wan", label: "Lien perdu", cls: "t-wan" };
 }
@@ -702,7 +703,7 @@ function buildEpisodes(points, gaps){
   const eps = server.length
     ? server.map(e => ({
         start: Date.parse(e.start), minutes: e.minutes, ...labelFor(e.cause),
-        detail: `${e.minutes} min sans mesure`
+        detail: `entre le dernier relevé et la reprise`
       }))
     : gaps.map(g => ({
         start: g.from, minutes: g.minutes, ...classifyGap(g),
