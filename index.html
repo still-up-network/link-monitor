@@ -1099,6 +1099,7 @@ let LATEST = null, seq = 0, pending = null;
 async function refresh(){
   const mine = ++seq;
   NOW = Date.now() - (Date.now() % MINUTE);
+  if (!ZOOM.length) VIEW = { from: NOW - (RANGE - 1) * MINUTE, to: NOW };  // fenêtre glissante
   const hint = document.getElementById("ribbonHint");
   try {
     const d = await loadPoints(VIEW.from, VIEW.to);
@@ -1106,7 +1107,7 @@ async function refresh(){
     DATA = d;
     LATEST = (VIEW.to >= NOW - 2 * MINUTE)
       ? d
-      : (LATEST || await loadPoints(NOW - 60 * MINUTE, NOW));
+      : await loadPoints(NOW - 60 * MINUTE, NOW);
     render();
   } catch (e) {
     hint.textContent = `lecture impossible — ${e.message}`;
