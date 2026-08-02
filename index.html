@@ -327,6 +327,7 @@ body[data-locked="1"] #enrol{display:block}
     <button type="button" class="ghost" id="simulate" aria-pressed="false">Simuler une coupure en cours</button>
     <button type="button" class="ghost" id="zoomBack" hidden>← Dézoomer</button>
     <button type="button" class="ghost" id="zoomAll" hidden>Tout voir</button>
+    <button type="button" class="ghost" id="revokeGo" hidden>Révoquer cet appareil</button>
     <div class="seg theme" role="group" aria-label="Thème d'affichage" style="margin-left:auto">
       <button type="button" data-theme="auto" aria-pressed="true">Auto</button>
       <button type="button" data-theme="light" aria-pressed="false">Clair</button>
@@ -1150,7 +1151,8 @@ $("enrolGo").addEventListener("click", () => attempt(
 $("loginGo").addEventListener("click", () => attempt(
   () => Device.login(), "Vérification en cours…"));
 
-$("forgetGo").addEventListener("click", async () => {
+async function revokeThisDevice(){
+  lock(true); showAccess();
   const msg = $("enrolMsg");
   msg.className = ""; msg.textContent = "Révocation…";
   try {
@@ -1163,11 +1165,14 @@ $("forgetGo").addEventListener("click", async () => {
     msg.className = "err";
     msg.textContent = e.name === "NotAllowedError" ? "Vérification annulée." : (e.message || String(e));
   }
-});
+}
+$("forgetGo").addEventListener("click", revokeThisDevice);
+$("revokeGo").addEventListener("click", revokeThisDevice);
 
 $("enrolCode").addEventListener("keydown", e => { if (e.key === "Enter") $("enrolGo").click(); });
 
 (async function start(){
+  $("revokeGo").hidden = !API_BASE;
   if (!API_BASE){ lock(false); refresh(); return; }   // mode démonstration
   const st = Device.load();
   if (st.live){ lock(false); refresh(); return; }     // session encore valable
