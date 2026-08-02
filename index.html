@@ -239,7 +239,7 @@ footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-fa
 /* Au doigt, la lecture s'ancre en bas du ruban plutôt que sous le curseur */
 @media (pointer:coarse){
   #ribbon{cursor:default}
-  .readout{left:8px!important;right:8px!important;top:auto!important;bottom:8px;min-width:0}
+  .readout{left:auto!important;right:8px!important;top:auto!important;bottom:8px;min-width:0;max-width:270px;font-size:10.5px;padding:7px 9px}
 }
 /* Tant que l'appareil n'est pas autorisé, seul le panneau d'accès s'affiche */
 body[data-locked="1"] .controls,
@@ -980,11 +980,11 @@ function showReadout(clientX, clientY){
     : `<b class="hd">${t}</b>
        <span class="k">perte</span>${c.lost}/5<br>
        ${c.point.lost_worst > c.lost ? `<span class="k">pire cible</span>${c.point.lost_worst}/5<br>` : ""}
-       <span class="k">rtt p50</span>${c.p50} ms<br>
-       <span class="k">rtt max</span>${c.max} ms<br>
-       <span class="k">sinr</span>${c.sinr} dB<br>
-       <span class="k">cellule</span>${c.point.radio.cell} · ${c.point.radio.band}<br>
-       <span class="k">onduleur</span>${c.point.ups === "OB" ? "batterie" : "secteur"}`;
+       ${c.p50 !== null ? `<span class="k">rtt p50</span>${c.p50} ms<br>` : ""}
+       ${c.max !== null ? `<span class="k">rtt max</span>${c.max} ms<br>` : ""}
+       ${c.sinr !== null && !Number.isNaN(+c.sinr) ? `<span class="k">sinr</span>${c.sinr} dB<br>` : ""}
+       ${c.point.radio && c.point.radio.cell ? `<span class="k">cellule</span>${c.point.radio.cell} · ${c.point.radio.band}<br>` : ""}
+       ${c.point.ups ? `<span class="k">onduleur</span>${c.point.ups === "OB" ? "batterie" : "secteur"}` : ""}`;
   const host = canvas.parentElement.getBoundingClientRect();
   const x = Math.min(clientX - host.left + 14, host.width - 216);
   readout.style.left = Math.max(6, x) + "px";
