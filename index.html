@@ -309,11 +309,10 @@ body[data-locked="1"] #enrol{display:block}
       <input id="enrolName" type="text" autocomplete="off"
              placeholder="nom de l'appareil" aria-label="Nom de l'appareil">
       <button type="button" id="enrolGo">Enrôler cet appareil</button>
-      <button type="button" id="loginAnyGo" class="quiet">J'ai déjà une clé pour ce site</button>
     </div>
     <div class="row" id="rowLogin" hidden>
-      <button type="button" id="loginGo">Déverrouiller</button>
-      <button type="button" id="forgetGo" class="quiet">Oublier cet appareil</button>
+      <button type="button" id="loginGo">Déverrouiller avec ma clé</button>
+      <button type="button" id="forgetGo" class="quiet">Révoquer cet appareil</button>
     </div>
     <div id="enrolMsg"></div>
   </section>
@@ -1113,7 +1112,8 @@ const $ = id => document.getElementById(id);
 function showAccess(){
   const known = !!Device.id;
   $("rowEnrol").hidden = known;
-  $("rowLogin").hidden = !known;
+  $("rowLogin").hidden = false;
+  $("forgetGo").hidden = !known;
   $("enrolTitle").textContent = known ? "Déverrouille ce tableau de bord" : "Cet appareil n'est pas encore autorisé";
   if (known){
     $("enrolText").textContent =
@@ -1150,13 +1150,19 @@ $("enrolGo").addEventListener("click", () => attempt(
 $("loginGo").addEventListener("click", () => attempt(
   () => Device.login(), "Vérification en cours…"));
 
-$("loginAnyGo").addEventListener("click", () => attempt(
-  () => Device.login(), "Vérification en cours…"));
-
-$("forgetGo").addEventListener("click", () => {
-  Device.forgetAll();
-  $("enrolMsg").textContent = "";
-  showAccess();
+$("forgetGo").addEventListener("click", async () => {
+  const msg = $("enrolMsg");
+  msg.className = ""; msg.textContent = "Révocation…";
+  try {
+    if (!Device.session) await Device.login();
+    await Device._post("device/revoke", { session: Device.session });
+    Device.forgetAll();
+    showAccess();
+    msg.textContent = "Appareil révoqué côté serveur. Supprime aussi la clé dans ton gestionnaire (Bitwarden).";
+  } catch (e) {
+    msg.className = "err";
+    msg.textContent = e.name === "NotAllowedError" ? "Vérification annulée." : (e.message || String(e));
+  }
 });
 
 $("enrolCode").addEventListener("keydown", e => { if (e.key === "Enter") $("enrolGo").click(); });
