@@ -324,7 +324,6 @@ body[data-locked="1"] #enrol{display:block}
       <button type="button" data-range="10080" aria-pressed="false">7 j</button>
       <button type="button" data-range="43200" aria-pressed="false">30 j</button>
     </div>
-    <button type="button" class="ghost" id="simulate" aria-pressed="false">Simuler une coupure en cours</button>
     <button type="button" class="ghost" id="zoomBack" hidden>← Dézoomer</button>
     <button type="button" class="ghost" id="zoomAll" hidden>Tout voir</button>
     <button type="button" class="ghost" id="revokeGo" hidden>Révoquer cet appareil</button>
@@ -640,8 +639,6 @@ function computeGaps(points){
 /* ============================================================
    2. QUALIFICATION
    ============================================================ */
-const SIM = { on: false };
-
 function classifyGap(g){
   if (g.before.ups === "OB" || g.after.ups === "OB")
     return { kind: "power", label: "Coupure secteur", cls: "t-power" };
@@ -695,7 +692,6 @@ function buildEpisodes(points, gaps){
 }
 
 function currentState(points){
-  if (SIM.on) return { state: "down", since: NOW - 7 * MINUTE, detail: "aucune mesure reçue · secteur présent · NAS non redémarré" };
   const last = points[points.length - 1];
   const age  = Math.round((NOW - Date.parse(last.ts)) / MINUTE);
   if (age >= 2) return { state: "down", since: Date.parse(last.ts), detail: `${age} min sans mesure` };
@@ -941,7 +937,7 @@ function renderVerdict(ds){
   }
   const last = points[points.length - 1];
   document.getElementById("lastSeen").textContent =
-    SIM.on ? "il y a 7 min" : new Date(last.ts).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+    new Date(last.ts).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
 }
 
 function fmtTs(t){
@@ -959,6 +955,17 @@ function render(){
   draw();
   renderKpis(DATA.points, eps, VIEW.from, VIEW.to);
   renderEpisodes(eps, VIEW.from, VIEW.to);
+  document.querySelectorAll(".ep[data-start]").forEach(card => {
+    const go = () => {
+      const start = Number(card.dataset.start);
+      const dur = Number(card.dataset.minutes) * MINUTE;
+      const pad = Math.max(10 * MINUTE, dur * 0.5);
+      setView(start - pad, start + dur + pad);
+      document.querySelector(".recorder").scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    card.addEventListener("click", go);
+    card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
   renderVerdict(LATEST || DATA);
   const zoomed = ZOOM.length > 0;
   document.getElementById("zoomBack").hidden = !zoomed;
@@ -1086,13 +1093,6 @@ themeBtns.forEach(b => {
   });
 });
 darkMq.addEventListener("change", () => { if (themeMode === "auto") applyTheme(); });
-const simBtn = document.getElementById("simulate");
-simBtn.addEventListener("click", () => {
-  SIM.on = !SIM.on;
-  simBtn.setAttribute("aria-pressed", String(SIM.on));
-  simBtn.textContent = SIM.on ? "Revenir à l'état réel" : "Simuler une coupure en cours";
-  renderVerdict(LATEST || DATA);
-});
 let rAF;
 window.addEventListener("resize", () => { cancelAnimationFrame(rAF); rAF = requestAnimationFrame(render); });
 
