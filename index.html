@@ -733,6 +733,15 @@ function buildEpisodes(points, gaps){
   flush();
   eps.push(...segEpisodes(points, "router", "AP Wi-Fi injoignable", "t-ap", "ap"));
   eps.push(...segEpisodes(points, "cpe", "Box 5G injoignable", "t-cpe", "cpe"));
+  { let run = [];
+    const fl = () => {
+      if (run.length >= 1) eps.push({ start: Date.parse(run[0].ts), minutes: run.length,
+        kind: "power", label: "Sur onduleur (batterie)", cls: "t-power",
+        detail: "secteur absent · lien maintenu par l'onduleur" });
+      run = [];
+    };
+    points.forEach(p => { p.ups === "OB" ? run.push(p) : fl(); });
+    fl(); }
   return eps.sort((a,b) => b.start - a.start);
 }
 
@@ -903,7 +912,7 @@ function draw(){
 
   // légende des pistes, posée sur un fond pour rester lisible sur les barres
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  const names = w < 460 ? ["rtr", "box", "net"] : ["routeur", "box 5G", "internet"];
+  const names = w < 460 ? ["AP", "box", "net"] : ["AP Wi-Fi", "box 5G", "internet"];
   names.forEach((name, li) => {
     const y = geom.lanesTop + li * (laneH + laneGap) + laneH / 2;
     const tw = ctx.measureText(name).width;
