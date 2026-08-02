@@ -319,8 +319,8 @@ body[data-locked="1"] #enrol{display:block}
 
   <div class="controls">
     <div class="seg" role="group" aria-label="Fenêtre d'observation">
-      <button type="button" data-range="360" aria-pressed="false">6 h</button>
-      <button type="button" data-range="1440" aria-pressed="true">24 h</button>
+      <button type="button" data-range="360" aria-pressed="true">6 h</button>
+      <button type="button" data-range="1440" aria-pressed="false">24 h</button>
       <button type="button" data-range="10080" aria-pressed="false">7 j</button>
       <button type="button" data-range="43200" aria-pressed="false">30 j</button>
     </div>
@@ -672,13 +672,19 @@ function buildEpisodes(points, gaps){
   // séquences dégradées : ≥ 3 minutes consécutives avec perte, sans trou
   let run = [];
   const flush = () => {
-    if (run.length >= 3){
+    if (run.length >= 1){
       const worst = Math.max(...run.map(p => p.lost));
-      const sinr  = (run.reduce((a,p) => a + p.radio.sinr, 0) / run.length).toFixed(1);
+      const lostP = run.reduce((a,p) => a + p.lost, 0);
+      const sent  = run.reduce((a,p) => a + (p.sent || 5), 0);
+      const sinrs = run.map(p => p.radio && p.radio.sinr).filter(v => v != null && !Number.isNaN(+v));
+      const sinr  = sinrs.length
+        ? ` · SINR moyen ${(sinrs.reduce((a,v) => a + +v, 0) / sinrs.length).toFixed(1)} dB` : "";
       eps.push({
         start: Date.parse(run[0].ts), minutes: run.length,
-        kind: "degraded", label: "Dégradation", cls: "t-degraded",
-        detail: `pic à ${worst}/5 · SINR moyen ${sinr} dB`
+        kind: "degraded",
+        label: run.length === 1 ? "Perte ponctuelle" : "Lien dégradé",
+        cls: "t-degraded",
+        detail: `${lostP}/${sent} paquets perdus · pic à ${worst}/5${sinr}`
       });
     }
     run = [];
@@ -705,8 +711,8 @@ function currentState(points){
 const CSS = getComputedStyle(document.documentElement);
 const C = k => CSS.getPropertyValue(k).trim();
 
-let DATA = null, RANGE = 1440, COLS = [], geom = null;
-let VIEW = { from: NOW - (1440 - 1) * MINUTE, to: NOW };  // fenêtre affichée
+let DATA = null, RANGE = 360, COLS = [], geom = null;
+let VIEW = { from: NOW - (360 - 1) * MINUTE, to: NOW };   // fenêtre affichée
 const ZOOM = [];                                          // pile des fenêtres précédentes
 const MIN_SPAN = 5;                                       // minutes : plancher du zoom
 let brush = null;                                         // sélection en cours
