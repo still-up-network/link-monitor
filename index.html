@@ -897,12 +897,13 @@ function draw(){
     // pistes de segments — trois états : joignable, injoignable, inconnu.
     // « inconnu » couvre les trous ET les condensés horaires (seg vide) :
     // une absence d'information n'est pas une panne, elle se dessine en gris
+    // « injoignable » prend la couleur du tag d'épisode de la piste (t-ap, t-cpe, t-wan)
     const seg = c.point ? c.point.seg : null;
-    [["router", seg && seg.router], ["cpe", seg && seg.cpe], ["wan", seg && seg.wan]]
+    [["router", seg && seg.router, "--ap"], ["cpe", seg && seg.cpe, "--cpe"], ["wan", seg && seg.wan, "--down"]]
       .forEach((s, li) => {
         const y = geom.lanesTop + li * (laneH + laneGap);
         const state = c.gap || typeof s[1] !== "boolean" ? "unknown" : s[1] ? "ok" : "down";
-        ctx.fillStyle = state === "unknown" ? C("--unknown") : state === "ok" ? C("--ok") : C("--down");
+        ctx.fillStyle = state === "unknown" ? C("--unknown") : state === "ok" ? C("--ok") : C(s[2]);
         ctx.globalAlpha = state === "unknown" ? .3 : state === "ok" ? .32 : 1;
         ctx.fillRect(x, y, barW, laneH);
         ctx.globalAlpha = 1;
@@ -941,13 +942,14 @@ function draw(){
   // légende des pistes, posée sur un fond pour rester lisible sur les barres
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   const names = w < 460 ? ["AP", "box", "net"] : ["AP Wi-Fi", "box 5G", "internet"];
+  const tints = ["--ap", "--cpe", "--down"];       // mêmes couleurs que les tags d'épisodes
   const maxW = Math.max(...names.map(n => ctx.measureText(n).width));
   names.forEach((name, li) => {
     const y = geom.lanesTop + li * (laneH + laneGap) + laneH / 2;
     ctx.fillStyle = C("--card"); ctx.globalAlpha = .92;
     ctx.fillRect(0, y - laneH / 2 - 1, maxW + 8, laneH + 2);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = C("--graphite");
+    ctx.fillStyle = C(tints[li]);
     ctx.fillText(name, 3, y);
   });
 }
