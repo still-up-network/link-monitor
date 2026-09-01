@@ -886,13 +886,16 @@ function draw(){
       ctx.fillStyle = colorFor(c);
       ctx.fillRect(x, bandH - bh, barW, bh);
     }
-    // pistes de segments
+    // pistes de segments — trois états : joignable, injoignable, inconnu.
+    // « inconnu » couvre les trous ET les condensés horaires (seg vide) :
+    // une absence d'information n'est pas une panne, elle se dessine en gris
     const seg = c.point ? c.point.seg : null;
     [["router", seg && seg.router], ["cpe", seg && seg.cpe], ["wan", seg && seg.wan]]
       .forEach((s, li) => {
         const y = geom.lanesTop + li * (laneH + laneGap);
-        ctx.fillStyle = c.gap ? C("--unknown") : (s[1] ? C("--ok") : C("--down"));
-        ctx.globalAlpha = c.gap ? .3 : (s[1] ? .32 : 1);
+        const state = c.gap || typeof s[1] !== "boolean" ? "unknown" : s[1] ? "ok" : "down";
+        ctx.fillStyle = state === "unknown" ? C("--unknown") : state === "ok" ? C("--ok") : C("--down");
+        ctx.globalAlpha = state === "unknown" ? .3 : state === "ok" ? .32 : 1;
         ctx.fillRect(x, y, barW, laneH);
         ctx.globalAlpha = 1;
       });
@@ -985,7 +988,7 @@ function renderEpisodes(eps, fromTs, toTs){
     </article>`).join("")}</div>`;
 }
 
-function renderVerdict(ds){
+function renderVerdict(ds, eps = []){
   const points = (ds && ds.points) || [];
   if (!points.length){
     document.getElementById("verdictState").textContent = "En attente de mesures";
@@ -1006,11 +1009,11 @@ function renderVerdict(ds){
   if (s.since){
     timer.innerHTML = `<span>en cours depuis</span>${fmtDur(Math.max(1, Math.round((NOW - s.since) / MINUTE)))}`;
   } else {
-    const gaps = (ds.gaps || []);
-    const eps  = (ds.episodes || []);
-    const lastT = Math.max(
-      gaps.length ? gaps[gaps.length - 1].to : 0,
-      eps.length ? Date.parse(eps[eps.length - 1].start) : 0);
+    // dernier incident : le plus récent des épisodes affichés qui compte comme
+    // indisponibilité (même règle que les KPI), quelle que soit la fenêtre —
+    // et non les seuls trous du jeu ayant servi au verdict (la dernière heure)
+    const lastT = eps.filter(e => !["degraded", "ap", "cpe"].includes(e.kind))
+                     .reduce((a, e) => Math.max(a, e.start), 0);
     timer.innerHTML = `<span>dernier incident</span>${lastT ? fmtTs(lastT) : "—"}`;
   }
   const last = points[points.length - 1];
@@ -1047,7 +1050,7 @@ function render(){
     card.addEventListener("click", go);
     card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
   });
-  renderVerdict(LATEST || DATA);
+  renderVerdict(LATEST || DATA, epsShown);
   const zoomed = ZOOM.length > 0;
   document.getElementById("zoomBack").hidden = !zoomed;
   document.getElementById("zoomAll").hidden  = !zoomed;
