@@ -683,11 +683,19 @@ function labelFor(cause){
 }
 
 function segEpisodes(points, key, label, cls, kind){
+  const step = (DATA && DATA.step) || 1;
   const eps = []; let run = [];
   const flush = () => {
-    if (run.length >= 2){
-      eps.push({ start: Date.parse(run[0].ts), minutes: run.length,
-                 kind, label, cls, detail: `${run.length} min sans réponse, internet mesuré par ailleurs` });
+    // en condensé, la durée vient du compte de minutes injoignables de chaque heure
+    const minutes = step > 1
+      ? run.reduce((a,p) => a + ((p.seg_down && p.seg_down[key]) || step), 0)
+      : run.length;
+    if (minutes >= 2){
+      eps.push({ start: Date.parse(run[0].ts), minutes, zoom: run.length * step,
+                 kind, label, cls,
+                 detail: step > 1
+                   ? `${minutes} min sans réponse sur ${run.length} h, internet mesuré par ailleurs`
+                   : `${run.length} min sans réponse, internet mesuré par ailleurs` });
     }
     run = [];
   };
@@ -1080,6 +1088,7 @@ function zoomBackOne(){ if (ZOOM.length){ VIEW = ZOOM.pop(); scheduleRefresh(); 
 function resetView(){ ZOOM.length = 0; VIEW = { from: NOW - (RANGE - 1) * MINUTE, to: NOW }; refresh(); }
 
 /* ---------- lecture au survol ---------- */
+const SEG_NAMES = { router: "AP Wi-Fi", cpe: "box 5G", wan: "internet" };
 function showReadout(clientX, clientY){
   if (!geom || !COLS.length) return;
   const r = canvas.getBoundingClientRect();
@@ -1095,6 +1104,8 @@ function showReadout(clientX, clientY){
        ${c.max !== null ? `<span class="k">rtt max</span>${c.max} ms<br>` : ""}
        ${c.sinr !== null && !Number.isNaN(+c.sinr) ? `<span class="k">sinr</span>${c.sinr} dB<br>` : ""}
        ${c.point.radio && c.point.radio.cell ? `<span class="k">cellule</span>${c.point.radio.cell} · ${c.point.radio.band}<br>` : ""}
+       ${c.point.missing > 0 ? `<span class="k">sans mesure</span>${c.point.missing} min<br>` : ""}
+       ${c.point.seg_down ? Object.entries(c.point.seg_down).map(([k, n]) => `<span class="k">${SEG_NAMES[k] || k}</span>${n} min injoignable<br>`).join("") : ""}
        ${c.point.ups ? `<span class="k">onduleur</span>${c.point.ups === "OB" ? "batterie" : "secteur"}` : ""}`;
   const host = canvas.parentElement.getBoundingClientRect();
   const x = Math.min(clientX - host.left + 14, host.width - 216);
