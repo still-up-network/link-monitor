@@ -1172,7 +1172,9 @@ async function refresh(){
     const d = await loadPoints(VIEW.from, VIEW.to);
     if (mine !== seq) return;                       // une requête plus récente a pris la main
     DATA = d;
-    LATEST = (VIEW.to >= NOW - 2 * MINUTE)
+    // le verdict se calcule sur des minutes brutes : un jeu condensé (7 j, 30 j,
+    // points horaires) ferait passer l'heure en cours pour une coupure
+    LATEST = (VIEW.to >= NOW - 2 * MINUTE && (d.step || 1) === 1)
       ? d
       : await loadPoints(NOW - 60 * MINUTE, NOW);
     render();
