@@ -697,18 +697,33 @@ function segEpisodes(points, key, label, cls, kind){
 }
 
 function buildEpisodes(points, gaps){
+  const step   = (DATA && DATA.step) || 1;      // minutes par point : 1 en brut, 60 en condensé
+  const hourly = step > 1;
   // Les coupures enregistrées par le watchdog font foi : elles survivent à la
   // purge des minutes brutes, donc l'historique long reste exact.
-  const server = (DATA && DATA.episodes) || [];
+  const server = ((DATA && DATA.episodes) || []).map(e => ({
+    start: Date.parse(e.start), minutes: e.minutes, ...labelFor(e.cause),
+    detail: `entre le dernier relevé et la reprise`
+  }));
   const eps = server.length
-    ? server.map(e => ({
-        start: Date.parse(e.start), minutes: e.minutes, ...labelFor(e.cause),
-        detail: `entre le dernier relevé et la reprise`
-      }))
+    ? [...server]
     : gaps.map(g => ({
         start: g.from, minutes: g.minutes, ...classifyGap(g),
         detail: `${g.minutes} min sans mesure`
       }));
+  if (hourly){
+    // Les condensés ne renvoient pas de trous, mais chaque heure sait combien
+    // de minutes lui manquent (< DOWN_AFTER, jamais vues par le watchdog).
+    // On les liste, sauf si une coupure enregistrée couvre déjà cette heure.
+    points.forEach(p => {
+      if (!(p.missing > 0)) return;
+      const h0 = Date.parse(p.ts), h1 = h0 + step * MINUTE;
+      if (server.some(e => e.start < h1 && e.start + e.minutes * MINUTE > h0)) return;
+      eps.push({ start: h0, minutes: p.missing, zoom: step, kind: "wan",
+                 label: "Mesures manquantes", cls: "t-wan",
+                 detail: `${p.missing} min sans mesure dans l'heure` });
+    });
+  }
   // séquences dégradées : ≥ 3 minutes consécutives avec perte, sans trou
   let run = [];
   const flush = () => {
@@ -720,11 +735,13 @@ function buildEpisodes(points, gaps){
       const sinr  = sinrs.length
         ? ` · SINR moyen ${(sinrs.reduce((a,v) => a + +v, 0) / sinrs.length).toFixed(1)} dB` : "";
       eps.push({
-        start: Date.parse(run[0].ts), minutes: run.length,
+        start: Date.parse(run[0].ts), minutes: run.length * step,
         kind: "degraded",
-        label: run.length === 1 ? "Perte ponctuelle" : "Lien dégradé",
+        label: hourly ? (run.length === 1 ? "Pertes dans l'heure" : "Pertes sur plusieurs heures")
+                      : (run.length === 1 ? "Perte ponctuelle" : "Lien dégradé"),
         cls: "t-degraded",
-        detail: `${lostP}/${sent} paquets perdus · pic à ${worst}/5${sinr}`
+        detail: hourly ? `pic à ${worst}/5 sur ${run.length} h${sinr}`
+                       : `${lostP}/${sent} paquets perdus · pic à ${worst}/5${sinr}`
       });
     }
     run = [];
@@ -735,7 +752,7 @@ function buildEpisodes(points, gaps){
   eps.push(...segEpisodes(points, "cpe", "Box 5G injoignable", "t-cpe", "cpe"));
   { let run = [];
     const fl = () => {
-      if (run.length >= 1) eps.push({ start: Date.parse(run[0].ts), minutes: run.length,
+      if (run.length >= 1) eps.push({ start: Date.parse(run[0].ts), minutes: run.length * step,
         kind: "power", label: "Sur onduleur (batterie)", cls: "t-power",
         detail: "secteur absent · lien maintenu par l'onduleur" });
       run = [];
@@ -959,7 +976,7 @@ function renderEpisodes(eps, fromTs, toTs){
   }
   el.innerHTML = `<div class="ep-list">${rows.slice(0, 14).map(e => `
     <article class="ep ${e.kind}${e.start === SELECTED_EP ? " selected" : ""}" role="button" tabindex="0"
-             data-start="${e.start}" data-minutes="${e.minutes}">
+             data-start="${e.start}" data-minutes="${e.minutes}" data-zoom="${e.zoom || e.minutes}">
       <div>
         <span class="tag ${e.cls}">${e.label}</span>
         <div class="ep-when">${new Date(e.start).toLocaleString("fr-FR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })} · ${e.detail}</div>
@@ -1022,7 +1039,7 @@ function render(){
     const go = () => {
       const start = Number(card.dataset.start);
       SELECTED_EP = start;
-      const dur = Number(card.dataset.minutes) * MINUTE;
+      const dur = Number(card.dataset.zoom || card.dataset.minutes) * MINUTE;
       const pad = Math.max(10 * MINUTE, dur * 0.5);      // contexte avant/après
       setView(start - pad, start + dur + pad);
       document.querySelector(".recorder").scrollIntoView({ behavior: "smooth", block: "center" });
